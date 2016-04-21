@@ -9,4 +9,5 @@ pip install icalendar
 
 ## Usage
 Download and run sgghsCalendar.py
+
 Settings are found inside the file
