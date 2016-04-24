@@ -61,7 +61,8 @@ def main():
 
     # Print lines
     def debugPrint(line):
-        _debugPrintEnabled and print(str(line))
+        if _debugPrintEnabled:
+        	print(str(line))
 
 	# Create Request object with user agent (So we don't get a 403 HTTP error)
 
@@ -113,7 +114,7 @@ def main():
 		ical_event = Event()
 		ical_event.add('summary', html_parser.HTMLParser().unescape(event['title']))
 		'description' in event and ical_event.add('description',
-												  html_parser.HTMLParser().unescape(event['description']))
+							html_parser.HTMLParser().unescape(event['description']))
 		date = datetime.strptime(event['start'], '%Y-%m-%d %H:%M:%S').date()
 		ical_event.add('dtstart', date)
 		ical_event.add('dtend', (datetime.strptime(event['end'], '%Y-%m-%d %H:%M:%S').date() if 'end' in event
