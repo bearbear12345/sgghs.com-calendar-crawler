@@ -9,15 +9,14 @@ Application to create an iCalendar file based of calender information from http:
 Author: Andrew Wong
 (e) featherbear@navhaxs.au.eu.org
 
-Version 1.2
+Version 1.3
 
 """
 
 ########################## SETTINGS ##########################
 _page = 1  # Which page to start crawling from    (Default: 1)
-_deepCrawl = 1  # Crawl entries for description?  (Default: 1)
 _debugPrintEnabled = 1  # Print console output?   (Default: 1)
-_output = '/sgghs.ics'  # File path to write to
+_output = './sgghs.ics'  # File path to write to
 ########################## SETTINGS ##########################
 
 
@@ -61,7 +60,6 @@ def main():
     Initialise
     '''
     global _page
-    global _deepCrawl
     global _debugPrintEnabled
     global _output
 
@@ -127,24 +125,33 @@ def main():
             else:
                 raise (CrawlerException())  # No more entries! Move on.
     except CrawlerException:
-        debugPrint('Crawl Finished.\n')
-        if _deepCrawl:
-            '''
-            Crawl pages for event title and date
-            '''
-            debugPrint('Deep Crawl is enabled! Will retrieve event description\nDeep Crawl Started.')
-            for i in (xrange(len(calendar))):
-                url = 'http://sgghs.com.au' + calendar[i]['url']  # Set url to open
-                debugPrint('    Opening page: ' + url)
-                soup = BeautifulSoup(urllib2.urlopen(url).read(), 'html.parser')  # Open and parse url
-                debugPrint('        Extracting description information')
-                event_description = soup.findAll(class_='content')[0].p.getText().encode(
-                    'utf-8').strip()  # Extract text
-                debugPrint('        Description: ' + event_description.replace('\n', '\n                     '))
-                calendar[i]['description'] = event_description  # Add to event's dictionary
-                del calendar[i]['url']  # Delete _url_ from the event's dictionary
-            debugPrint('Deep Crawl Finished.\n')
+        debugPrint('Initial Crawl Finished.\nRetrieving event descriptions...')
+        for i in (xrange(len(calendar))):
+            url = 'http://sgghs.com.au' + calendar[i]['url']  # Set url to open
+            debugPrint('    Opening page: ' + url)
+            soup = BeautifulSoup(urllib2.urlopen(url).read(), 'html.parser')  # Open and parse url
+            debugPrint('        Extracting description information')
+            event_description = soup.findAll(class_='content')[0].p.getText().encode(
+                'utf-8').strip()  # Extract text
+            debugPrint('        Description: ' + event_description.replace('\n', '\n                     '))
+            calendar[i]['description'] = event_description.replace("\xc2\xa0", ' ').strip()  # Add to event's dictionary
+            del calendar[i]['url']  # Delete _url_ from the event's dictionary
+        debugPrint('Description Crawl Finished.\n')
 
+        import os.path, ast
+        _output_data_ = _output + '.data'
+        if os.path.isfile(_output_data_):
+            debugPrint('Merging with old calendar data...\n')
+            try:
+                with open(_output_data_, 'r+') as f:
+                    oldCalendar = ast.literal_eval(f.read())
+                for event in calendar:
+                    if event not in oldCalendar:
+                        oldCalendar.append(event)
+                calendar = oldCalendar
+            except:
+                pass
+        
         '''
         Generate iCalendar file
         '''
@@ -158,6 +165,7 @@ def main():
             pip.main(['install', 'icalendar'])
             from icalendar import Calendar, Event
         from datetime import datetime, timedelta
+        import re
 
         ical = Calendar()
         ical.add('prodid', '-//navhaxs.au.eu.org//St George Girls High Calendar//EN')
@@ -169,17 +177,26 @@ def main():
         for event in calendar:
             ical_event = Event()
             ical_event.add('summary', event['title'])
-            _deepCrawl and ical_event.add('description', event['description'])
+            ical_event.add('description', event['description'])
             date = datetime.strptime(event['date'], '%Y%m%d').date()
             ical_event.add('dtstart', date)
-            ical_event.add('dtend', date + timedelta(days=1))
+            regexMatch = re.search(r'\sto\s(\w*)\s(\d{1,2})\w{0,2}\s?(\w*)', event['description'])
+            try:
+                ical_event.add('dtend', datetime.strptime(regexMatch.group(3) if regexMatch.group(1).endswith('day') else regexMatch.group(1), '%B').replace(year=date.year, day=int(regexMatch.group(2))).date())
+            except:
+                ical_event.add('dtend', date + timedelta(days=1))
             ical.add_component(ical_event)
 
         debugPrint('Writing iCalender file...')
         with open(_output, 'wb') as f:
             f.write(ical.to_ical())
 
+        with open(_output_data_, 'wb') as f:
+            f.write(str(calendar))
+
         debugPrint('\nDone!')
+        
+
 
 
 main()
