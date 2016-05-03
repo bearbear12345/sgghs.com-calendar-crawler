@@ -182,7 +182,7 @@ def main():
             ical_event.add('dtstart', date)
             regexMatch = re.search(r'\sto\s(\w*)\s(\d{1,2})\w{0,2}\s?(\w*)', event['description'])
             try:
-                ical_event.add('dtend', datetime.strptime(regexMatch.group(3) if regexMatch.group(1).endswith('day') else regexMatch.group(1), '%B').replace(year=date.year, day=int(regexMatch.group(2))).date())
+                ical_event.add('dtend', datetime.strptime(regexMatch.group(3) if regexMatch.group(1).endswith('day') else regexMatch.group(1), '%B').replace(year=date.year, day=int(regexMatch.group(2))).date() + timedelta(days=1))
             except:
                 ical_event.add('dtend', date + timedelta(days=1))
             ical.add_component(ical_event)
